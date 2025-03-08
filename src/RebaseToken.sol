@@ -2,6 +2,8 @@
 pragma solidity ^0.8.26;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @title RebaseToken
@@ -10,26 +12,35 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
  * @notice The interest rate in the smart contract can only decrease
  * @notice Each user will have a unique interest rate
  */
-contract RebaseToken is ERC20 {
+contract RebaseToken is ERC20, Ownable, AccessControl {
     // Errors
     error RebaseToken__InterestRateCanOnlyDecrease(uint256 oldInterestRate, uint256 newInterestRate);
 
     uint256 private s_interestRate = 5e10;
     uint256 private constant PRECISION_FACTOR = 1e18;
+    bytes32 private constant MINT_AND_BURN_ROLE = keccak256("MINT_AND_BURN_ROLE");
     mapping(address => uint256) private s_userInterestRate;
     mapping(address => uint256) private s_userLastUpdatedTimestamp;
 
     // Events
     event InterestRateSet(uint256 newInterestRate);
 
-    constructor() ERC20("Rebase Token", "RBT") {}
+    constructor() ERC20("Rebase Token", "RBT") Ownable(msg.sender) {}
+
+    /**
+     * @notice Grant the mint and burn role to the user
+     * @param _account The account address
+     */
+    function grantMintAndBurnRole(address _account) external onlyOwner {
+        _grantRole(MINT_AND_BURN_ROLE, _account);
+    }
 
     /**
      * @notice Set the interest rate for the user
      * @param _newInterestRate The new interest rate for the user
      * @dev The interest rate can only decrease
      */
-    function setInterestRate(uint256 _newInterestRate) external {
+    function setInterestRate(uint256 _newInterestRate) external onlyOwner {
         // Set the interest rate for the user
         if (_newInterestRate < s_interestRate) {
             revert RebaseToken__InterestRateCanOnlyDecrease(s_interestRate, _newInterestRate);
@@ -52,7 +63,7 @@ contract RebaseToken is ERC20 {
      * @param _to The address to mint the tokens to
      * @param _amount The amount of tokens to mint
      */
-    function mint(address _to, uint256 _amount) external {
+    function mint(address _to, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE) {
         _mintAccuredInterest(_to);
         s_userInterestRate[_to] = s_interestRate;
         _mint(_to, _amount);
@@ -63,8 +74,8 @@ contract RebaseToken is ERC20 {
      * @param _from The address to burn the tokens from
      * @param _amount The amount of tokens to burn
      */
-    function burn(address _from, uint256 _amount) external {
-        if(_amount == type(uint256).max) {
+    function burn(address _from, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE) {
+        if (_amount == type(uint256).max) {
             _amount = balanceOf(_from);
         }
         _mintAccuredInterest(_from);
@@ -96,7 +107,6 @@ contract RebaseToken is ERC20 {
             s_userInterestRate[_recipient] = s_userInterestRate[msg.sender];
         }
         return super.transfer(_recipient, _amount);
-        
     }
 
     /**
@@ -115,7 +125,7 @@ contract RebaseToken is ERC20 {
         if (balanceOf(_recipient) == 0) {
             s_userInterestRate[_recipient] = s_userInterestRate[_sender];
         }
-            return super.transferFrom(_sender, _recipient, _amount);
+        return super.transferFrom(_sender, _recipient, _amount);
     }
 
     /**
