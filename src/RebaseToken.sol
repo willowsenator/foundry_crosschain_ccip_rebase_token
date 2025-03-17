@@ -3,7 +3,8 @@ pragma solidity ^0.8.26;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {AccessControlDefaultAdminRules} from
+    "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
 
 /**
  * @title RebaseToken
@@ -12,7 +13,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  * @notice The interest rate in the smart contract can only decrease
  * @notice Each user will have a unique interest rate
  */
-contract RebaseToken is ERC20, Ownable, AccessControl {
+contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
     // Errors
     error RebaseToken__InterestRateCanOnlyDecrease(uint256 oldInterestRate, uint256 newInterestRate);
 
@@ -25,13 +26,13 @@ contract RebaseToken is ERC20, Ownable, AccessControl {
     // Events
     event InterestRateSet(uint256 newInterestRate);
 
-    constructor() ERC20("Rebase Token", "RBT") Ownable(msg.sender) {}
+    constructor() ERC20("Rebase Token", "RBT") AccessControlDefaultAdminRules(3 days, msg.sender) {}
 
     /**
      * @notice Grant the mint and burn role to the user
      * @param _account The account address
      */
-    function grantMintAndBurnRole(address _account) external onlyOwner {
+    function grantMintAndBurnRole(address _account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _grantRole(MINT_AND_BURN_ROLE, _account);
     }
 
@@ -40,7 +41,7 @@ contract RebaseToken is ERC20, Ownable, AccessControl {
      * @param _newInterestRate The new interest rate for the user
      * @dev The interest rate can only decrease
      */
-    function setInterestRate(uint256 _newInterestRate) external onlyOwner {
+    function setInterestRate(uint256 _newInterestRate) external onlyRole(DEFAULT_ADMIN_ROLE) {
         // Set the interest rate for the user
         if (_newInterestRate < s_interestRate) {
             revert RebaseToken__InterestRateCanOnlyDecrease(s_interestRate, _newInterestRate);

@@ -15,9 +15,7 @@ contract Vault {
         i_rebaseToken = _rebaseToken;
     }
 
-    receive() external payable {
-    }
-
+    receive() external payable {}
 
     /**
      * @notice Deposit ETH to the vault
@@ -34,7 +32,7 @@ contract Vault {
      */
     function redeem(uint256 _amount) external {
         i_rebaseToken.burn(msg.sender, _amount);
-        (bool success, ) =payable(msg.sender).call{value: _amount}("");
+        (bool success,) = payable(msg.sender).call{value: _amount}("");
 
         if (!success) {
             revert Vault__RedeemFailed();
@@ -42,7 +40,6 @@ contract Vault {
 
         emit Redeem(msg.sender, _amount);
     }
-
 
     /**
      * @notice Get the rebase token address
