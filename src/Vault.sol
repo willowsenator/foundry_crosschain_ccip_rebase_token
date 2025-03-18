@@ -31,14 +31,21 @@ contract Vault {
      * @param _amount The amount of rebase token to redeem
      */
     function redeem(uint256 _amount) external {
-        i_rebaseToken.burn(msg.sender, _amount);
-        (bool success,) = payable(msg.sender).call{value: _amount}("");
+         if (_amount == type(uint256).max) {
+            _amount = i_rebaseToken.balanceOf(msg.sender);
+        }
+        uint256 vaultBalance = address(this).balance;
+        
+        // Scale the redemption amount if the vault does not have enough balance
+        uint256 redeemableAmount = _amount > vaultBalance ? vaultBalance : _amount;
+        i_rebaseToken.burn(msg.sender, redeemableAmount);
+        (bool success,) = payable(msg.sender).call{value: redeemableAmount}("");
 
         if (!success) {
             revert Vault__RedeemFailed();
         }
 
-        emit Redeem(msg.sender, _amount);
+        emit Redeem(msg.sender, redeemableAmount);
     }
 
     /**

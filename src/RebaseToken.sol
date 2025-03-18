@@ -43,7 +43,7 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
      */
     function setInterestRate(uint256 _newInterestRate) external onlyRole(DEFAULT_ADMIN_ROLE) {
         // Set the interest rate for the user
-        if (_newInterestRate < s_interestRate) {
+        if (_newInterestRate > s_interestRate) {
             revert RebaseToken__InterestRateCanOnlyDecrease(s_interestRate, _newInterestRate);
         }
         s_interestRate = _newInterestRate;
