@@ -9,8 +9,7 @@ import {Vault} from "../src/Vault.sol";
 
 import {IRebaseToken} from "../src/interfaces/IRebaseToken.sol";
 
-import {IAccessControl} from
-    "@openzeppelin/contracts/access/IAccessControl.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 contract RebaseTokenTest is Test {
     RebaseToken private rebaseToken;
@@ -136,7 +135,6 @@ contract RebaseTokenTest is Test {
 
         assertEq(rebaseToken.getUserInterestRate(user), 5e10);
         assertEq(rebaseToken.getUserInterestRate(user2), 5e10);
-
     }
 
     function testCannotSetInterestRate(uint256 _newInterestRate) public {
@@ -165,5 +163,20 @@ contract RebaseTokenTest is Test {
 
         vm.warp(block.timestamp + 1 hours);
         assertEq(rebaseToken.principalBalanceOf(user), amount);
+    }
+
+    function testGetRebaseTokenAddress() public view {
+        assertEq(address(vault.getRebaseTokenAddress()), address(rebaseToken));
+    }
+
+    function testInterestRateCanOnlyDecrease(uint256 _newInterestRate) public {
+        uint256 initialInterestRate = rebaseToken.getInterestRate();
+        _newInterestRate = bound(_newInterestRate, initialInterestRate, initialInterestRate + 2);
+        vm.prank(owner);
+
+        vm.expectPartialRevert(RebaseToken.RebaseToken__InterestRateCanOnlyDecrease.selector);
+        rebaseToken.setInterestRate(_newInterestRate);
+
+        assertEq(rebaseToken.getInterestRate(), initialInterestRate);
     }
 }
