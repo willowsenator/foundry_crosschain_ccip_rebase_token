@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {AccessControlDefaultAdminRules} from
     "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title RebaseToken
@@ -14,17 +16,26 @@ import {AccessControlDefaultAdminRules} from
  * @notice Each user will have a unique interest rate
  */
 contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
+    using SafeERC20 for IERC20;
     // Errors
+
     error RebaseToken__InterestRateCanOnlyDecrease(uint256 oldInterestRate, uint256 newInterestRate);
 
     uint256 private s_interestRate = 5e10;
     uint256 private constant PRECISION_FACTOR = 1e18;
     bytes32 private constant MINT_AND_BURN_ROLE = keccak256("MINT_AND_BURN_ROLE");
+
     mapping(address => uint256) private s_userInterestRate;
     mapping(address => uint256) private s_userLastUpdatedTimestamp;
 
     // Events
     event InterestRateSet(uint256 newInterestRate);
+    event Mint(address indexed to, uint256 amount);
+    event Burn(address indexed to, uint256 amount);
+    event TransferStateUpdated(address indexed to, uint256 amount);
+    event TransferFromStateUpdated(address indexed from, address indexed to, uint256 amount);
+    event MintAndBurnRoleGranted(address indexed account);
+    event AdminRoleGrantFailed(address indexed account);
 
     constructor() ERC20("Rebase Token", "RBT") AccessControlDefaultAdminRules(3 days, msg.sender) {}
 
@@ -33,7 +44,9 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
      * @param _account The account address
      */
     function grantMintAndBurnRole(address _account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _grantRole(MINT_AND_BURN_ROLE, _account);
+        bool sucess = _grantRole(MINT_AND_BURN_ROLE, _account);
+        require(sucess, "RebaseToken: Failed to grant mint and burn role");
+        emit MintAndBurnRoleGranted(_account);
     }
 
     /**
@@ -68,6 +81,8 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
         _mintAccuredInterest(_to);
         s_userInterestRate[_to] = s_interestRate;
         _mint(_to, _amount);
+        emit Mint(_to, _amount);
+        s_userLastUpdatedTimestamp[_to] = block.timestamp;
     }
 
     /**
@@ -81,6 +96,8 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
         }
         _mintAccuredInterest(_from);
         _burn(_from, _amount);
+        emit Burn(_from, _amount);
+        s_userLastUpdatedTimestamp[_from] = block.timestamp;
     }
 
     /**
@@ -100,14 +117,22 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
     function transfer(address _recipient, uint256 _amount) public override returns (bool) {
         _mintAccuredInterest(msg.sender);
         _mintAccuredInterest(_recipient);
+        uint256 senderBalance = balanceOf(msg.sender);
         if (_amount == type(uint256).max) {
-            _amount = balanceOf(msg.sender);
+            _amount = senderBalance;
         }
+
+        console.log("Sender balance: ", senderBalance);
+        console.log("Amount: ", _amount);
+        require(senderBalance >= _amount, "RebaseToken: Insufficient balance");
 
         if (balanceOf(_recipient) == 0) {
             s_userInterestRate[_recipient] = s_userInterestRate[msg.sender];
         }
-        return super.transfer(_recipient, _amount);
+        IERC20(address(this)).safeTransfer(_recipient, _amount);
+        s_userLastUpdatedTimestamp[_recipient] = block.timestamp;
+        emit TransferStateUpdated(_recipient, _amount);
+        return true;
     }
 
     /**
@@ -126,6 +151,8 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
         if (balanceOf(_recipient) == 0) {
             s_userInterestRate[_recipient] = s_userInterestRate[_sender];
         }
+        require(_sender == msg.sender || allowance(_sender, msg.sender) >= _amount, "RebaseToken: Unauthorized sender");
+        emit TransferFromStateUpdated(_sender, _recipient, _amount);
         return super.transferFrom(_sender, _recipient, _amount);
     }
 

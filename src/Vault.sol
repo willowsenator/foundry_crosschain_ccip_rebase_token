@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import {IRebaseToken} from "./interfaces/IRebaseToken.sol";
 
@@ -38,6 +38,7 @@ contract Vault {
 
         // Scale the redemption amount if the vault does not have enough balance
         uint256 redeemableAmount = _amount > vaultBalance ? vaultBalance : _amount;
+        require(msg.sender != address(0), "Vault: Invalid sender address");
         i_rebaseToken.burn(msg.sender, redeemableAmount);
         (bool success,) = payable(msg.sender).call{value: redeemableAmount}("");
 
