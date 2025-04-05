@@ -6,7 +6,6 @@ import {AccessControlDefaultAdminRules} from
     "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {console} from "forge-std/console.sol";
 
 /**
  * @title RebaseToken
@@ -27,6 +26,7 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
 
     mapping(address => uint256) private s_userInterestRate;
     mapping(address => uint256) private s_userLastUpdatedTimestamp;
+    mapping(address => uint256) private s_principalBalance;
 
     // Events
     event InterestRateSet(uint256 newInterestRate);
@@ -69,7 +69,7 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
      * @return The principal balance of the user
      */
     function principalBalanceOf(address _user) external view returns (uint256) {
-        return super.balanceOf(_user);
+        return s_principalBalance[_user];
     }
 
     /**
@@ -81,6 +81,7 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
         _mintAccuredInterest(_to);
         s_userInterestRate[_to] = s_interestRate;
         _mint(_to, _amount);
+        s_principalBalance[_to] += _amount;
         emit Mint(_to, _amount);
         s_userLastUpdatedTimestamp[_to] = block.timestamp;
     }
@@ -95,7 +96,9 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
             _amount = balanceOf(_from);
         }
         _mintAccuredInterest(_from);
+        require(s_principalBalance[_from] >= _amount, "RebaseToken: Insufficient principal balance");
         _burn(_from, _amount);
+        s_principalBalance[_from] -= _amount;
         emit Burn(_from, _amount);
         s_userLastUpdatedTimestamp[_from] = block.timestamp;
     }
@@ -122,8 +125,6 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
             _amount = senderBalance;
         }
 
-        console.log("Sender balance: ", senderBalance);
-        console.log("Amount: ", _amount);
         require(senderBalance >= _amount, "RebaseToken: Insufficient balance");
 
         if (balanceOf(_recipient) == 0) {
@@ -164,6 +165,8 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
     function _calculateAccumulateUserInterest(address _user) internal view returns (uint256 linearInterest) {
         uint256 timeElapsed = block.timestamp - s_userLastUpdatedTimestamp[_user];
         linearInterest = PRECISION_FACTOR + (s_userInterestRate[_user] * timeElapsed);
+
+        require(linearInterest >= PRECISION_FACTOR, "RebaseToken: Overflow in interest calculation");
     }
 
     /**
@@ -171,10 +174,10 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
      * @param _user The user address
      */
     function _mintAccuredInterest(address _user) internal {
+        s_userLastUpdatedTimestamp[_user] = block.timestamp;
         uint256 previousPrincipalBalance = super.balanceOf(_user);
         uint256 currentBalance = balanceOf(_user);
         uint256 balanceIncrease = currentBalance - previousPrincipalBalance;
-        s_userLastUpdatedTimestamp[_user] = block.timestamp;
         _mint(_user, balanceIncrease);
     }
 

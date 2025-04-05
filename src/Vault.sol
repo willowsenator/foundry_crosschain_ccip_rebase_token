@@ -35,16 +35,18 @@ contract Vault {
             _amount = i_rebaseToken.balanceOf(msg.sender);
         }
         uint256 vaultBalance = address(this).balance;
+        uint256 principal = i_rebaseToken.principalBalanceOf(msg.sender);
 
         // Scale the redemption amount if the vault does not have enough balance
-        uint256 redeemableAmount = _amount > vaultBalance ? vaultBalance : _amount;
+        uint256 redeemableAmount = _amount > vaultBalance ? vaultBalance : principal;
         require(msg.sender != address(0), "Vault: Invalid sender address");
-        i_rebaseToken.burn(msg.sender, redeemableAmount);
+        // Transfer Ether BEFORE burning tokens
         (bool success,) = payable(msg.sender).call{value: redeemableAmount}("");
-
         if (!success) {
             revert Vault__RedeemFailed();
         }
+
+        i_rebaseToken.burn(msg.sender, redeemableAmount);
 
         emit Redeem(msg.sender, redeemableAmount);
     }
