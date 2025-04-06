@@ -4,8 +4,6 @@ pragma solidity 0.8.26;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {AccessControlDefaultAdminRules} from
     "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title RebaseToken
@@ -15,7 +13,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice Each user will have a unique interest rate
  */
 contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
-    using SafeERC20 for IERC20;
     // Errors
 
     error RebaseToken__InterestRateCanOnlyDecrease(uint256 oldInterestRate, uint256 newInterestRate);
@@ -130,7 +127,7 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
         if (balanceOf(_recipient) == 0) {
             s_userInterestRate[_recipient] = s_userInterestRate[msg.sender];
         }
-        IERC20(address(this)).safeTransfer(_recipient, _amount);
+        _transfer(msg.sender, _recipient, _amount);
         s_userLastUpdatedTimestamp[_recipient] = block.timestamp;
         emit TransferStateUpdated(_recipient, _amount);
         return true;
@@ -152,9 +149,17 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
         if (balanceOf(_recipient) == 0) {
             s_userInterestRate[_recipient] = s_userInterestRate[_sender];
         }
-        require(_sender == msg.sender || allowance(_sender, msg.sender) >= _amount, "RebaseToken: Unauthorized sender");
+        address spender = msg.sender;
+        uint256 currentAllowance = allowance(_sender, spender);
+
+        if (_sender != spender) {
+            require(currentAllowance >= _amount, "RebaseToken: Unauthorized sender");
+            _spendAllowance(_sender, spender, _amount);
+        }
+
+        _transfer(_sender, _recipient, _amount);
         emit TransferFromStateUpdated(_sender, _recipient, _amount);
-        return super.transferFrom(_sender, _recipient, _amount);
+        return true;
     }
 
     /**
