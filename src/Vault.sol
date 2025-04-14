@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.26;
+pragma solidity 0.8.24;
 
 import {IRebaseToken} from "./interfaces/IRebaseToken.sol";
 
@@ -22,7 +22,8 @@ contract Vault {
      * @dev The user will get the rebase token in return
      */
     function deposit() external payable {
-        i_rebaseToken.mint(msg.sender, msg.value);
+        uint256 interestRate = i_rebaseToken.getInterestRate();
+        i_rebaseToken.mint(msg.sender, msg.value, interestRate);
         emit Deposit(msg.sender, msg.value);
     }
 
