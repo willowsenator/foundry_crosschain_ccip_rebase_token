@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {AccessControlDefaultAdminRules} from
     "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
+import {console} from "forge-std/console.sol";
 
 /**
  * @title RebaseToken
@@ -77,12 +78,12 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
      * @dev The interest rate can only decrease
      */
     function mint(address _to, uint256 _amount, uint256 _userInterestRate) external onlyRole(MINT_AND_BURN_ROLE) {
+        console.log("Mint called by:", msg.sender);
         _mintAccuredInterest(_to);
         s_userInterestRate[_to] = _userInterestRate;
         _mint(_to, _amount);
         s_principalBalance[_to] += _amount;
         emit Mint(_to, _amount);
-        s_userLastUpdatedTimestamp[_to] = block.timestamp;
     }
 
     /**
@@ -91,6 +92,7 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
      * @param _amount The amount of tokens to burn
      */
     function burn(address _from, uint256 _amount) external onlyRole(MINT_AND_BURN_ROLE) {
+        console.log("Burn called by:", msg.sender);
         if (_amount == type(uint256).max) {
             _amount = balanceOf(_from);
         }

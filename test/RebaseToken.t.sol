@@ -17,6 +17,8 @@ contract RebaseTokenTest is Test {
     address public owner = makeAddr("Owner");
     address public user = makeAddr("User");
 
+    bytes32 private constant MINT_AND_BURN_ROLE = keccak256("MINT_AND_BURN_ROLE");
+
     function setUp() public {
         vm.startPrank(owner);
         rebaseToken = new RebaseToken();
@@ -162,8 +164,11 @@ contract RebaseTokenTest is Test {
 
     function testCannotCallMintAndBurn() public {
         vm.prank(user);
+
+        uint256 interestRate = rebaseToken.getInterestRate();
+
         vm.expectPartialRevert(IAccessControl.AccessControlUnauthorizedAccount.selector);
-        rebaseToken.mint(user, 100, rebaseToken.getInterestRate());
+        rebaseToken.mint(user, 100, interestRate);
 
         vm.expectPartialRevert(IAccessControl.AccessControlUnauthorizedAccount.selector);
         rebaseToken.burn(user, 100);
