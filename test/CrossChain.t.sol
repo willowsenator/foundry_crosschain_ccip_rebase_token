@@ -21,7 +21,8 @@ contract CrossChain is Test {
     RebaseToken sepoliaToken;
     RebaseToken arbSepoliaToken;
 
-    Vault vault;
+    Vault sepoliaVault;
+    Vault arbSepoliaVault;
 
     RebaseTokenPool sepoliaRebaseTokenPool;
     RebaseTokenPool arbSepoliaRebaseTokenPool;
@@ -42,7 +43,7 @@ contract CrossChain is Test {
         sepoliaNetworkDetails = ccipLocalSimulatorFork.getNetworkDetails(block.chainid);
         vm.startPrank(owner);
         sepoliaToken = new RebaseToken();
-        vault = new Vault(IRebaseToken(address(sepoliaToken)));
+        sepoliaVault = new Vault(IRebaseToken(address(sepoliaToken)));
         sepoliaRebaseTokenPool = new RebaseTokenPool(
             IERC20(address(sepoliaToken)),
             new address[](0),
@@ -50,7 +51,7 @@ contract CrossChain is Test {
             sepoliaNetworkDetails.routerAddress
         );
 
-        sepoliaToken.grantMintAndBurnRole(address(vault));
+        sepoliaToken.grantMintAndBurnRole(address(sepoliaVault));
         sepoliaToken.grantMintAndBurnRole(address(sepoliaRebaseTokenPool));
 
         RegistryModuleOwnerCustom(sepoliaNetworkDetails.registryModuleOwnerCustomAddress).registerAdminViaOwner(
@@ -77,7 +78,9 @@ contract CrossChain is Test {
             arbSepoliaNetworkDetails.routerAddress
         );
 
-        arbSepoliaToken.grantMintAndBurnRole(address(vault));
+        arbSepoliaVault = new Vault(IRebaseToken(address(arbSepoliaToken)));
+
+        arbSepoliaToken.grantMintAndBurnRole(address(arbSepoliaVault));
         arbSepoliaToken.grantMintAndBurnRole(address(arbSepoliaRebaseTokenPool));
 
         RegistryModuleOwnerCustom(arbSepoliaNetworkDetails.registryModuleOwnerCustomAddress).registerAdminViaOwner(

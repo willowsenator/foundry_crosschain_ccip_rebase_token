@@ -2,8 +2,7 @@
 pragma solidity 0.8.24;
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {AccessControlDefaultAdminRules} from
-    "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {console} from "forge-std/console.sol";
 
 /**
@@ -13,7 +12,7 @@ import {console} from "forge-std/console.sol";
  * @notice The interest rate in the smart contract can only decrease
  * @notice Each user will have a unique interest rate
  */
-contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
+contract RebaseToken is ERC20, AccessControl {
     // Errors
 
     error RebaseToken__InterestRateCanOnlyDecrease(uint256 oldInterestRate, uint256 newInterestRate);
@@ -21,6 +20,7 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
     uint256 private s_interestRate = 5e10;
     uint256 private constant PRECISION_FACTOR = 1e18;
     bytes32 private constant MINT_AND_BURN_ROLE = keccak256("MINT_AND_BURN_ROLE");
+    address private immutable i_owner;
 
     mapping(address => uint256) private s_userInterestRate;
     mapping(address => uint256) private s_userLastUpdatedTimestamp;
@@ -35,7 +35,20 @@ contract RebaseToken is ERC20, AccessControlDefaultAdminRules {
     event MintAndBurnRoleGranted(address indexed account);
     event AdminRoleGrantFailed(address indexed account);
 
-    constructor() ERC20("Rebase Token", "RBT") AccessControlDefaultAdminRules(3 days, msg.sender) {}
+    constructor() ERC20("Rebase Token", "RBT") {
+        bool sucess = _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        require(sucess, "RebaseToken: Failed to grant admin role");
+        i_owner = msg.sender;
+    }
+
+    /**
+     * @notice Get the owner of the contract
+     * @return The owner of the contract
+     * @dev The owner of the contract is the address that deployed the contract
+     */
+    function owner() external view returns (address) {
+        return i_owner;
+    }
 
     /**
      * @notice Grant the mint and burn role to the user
