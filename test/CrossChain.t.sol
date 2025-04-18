@@ -96,12 +96,30 @@ contract CrossChain is Test {
             address(arbSepoliaToken), address(arbSepoliaTokenPool)
         );
 
-        configureTokenPool(sepoliaForkId, address(sepoliaTokenPool), arbSepoliaNetworkDetails.chainSelector, address(arbSepoliaTokenPool), address(arbSepoliaToken));
-        configureTokenPool(arbSepoliaForkId, address(arbSepoliaTokenPool), sepoliaNetworkDetails.chainSelector, address(sepoliaTokenPool), address(sepoliaToken));
+        configureTokenPool(
+            sepoliaForkId,
+            address(sepoliaTokenPool),
+            arbSepoliaNetworkDetails.chainSelector,
+            address(arbSepoliaTokenPool),
+            address(arbSepoliaToken)
+        );
+        configureTokenPool(
+            arbSepoliaForkId,
+            address(arbSepoliaTokenPool),
+            sepoliaNetworkDetails.chainSelector,
+            address(sepoliaTokenPool),
+            address(sepoliaToken)
+        );
         vm.stopPrank();
     }
 
-    function configureTokenPool(uint256 forkId, address localPool, uint64 remoteChainSelector, address remotePool, address remoteToken) public {
+    function configureTokenPool(
+        uint256 forkId,
+        address localPool,
+        uint64 remoteChainSelector,
+        address remotePool,
+        address remoteToken
+    ) public {
         vm.selectFork(forkId);
         TokenPool.ChainUpdate[] memory chainUpdates = new TokenPool.ChainUpdate[](1);
         chainUpdates[0] = TokenPool.ChainUpdate({
@@ -109,19 +127,10 @@ contract CrossChain is Test {
             allowed: true,
             remotePoolAddress: abi.encode(remotePool),
             remoteTokenAddress: abi.encode(remoteToken),
-            outboundRateLimiterConfig: RateLimiter.Config({
-                isEnabled: false,
-                capacity: 0,
-                rate: 0
-            }),
-            inboundRateLimiterConfig: RateLimiter.Config({
-               isEnabled: false,
-                capacity: 0,
-                rate: 0
-            })
+            outboundRateLimiterConfig: RateLimiter.Config({isEnabled: false, capacity: 0, rate: 0}),
+            inboundRateLimiterConfig: RateLimiter.Config({isEnabled: false, capacity: 0, rate: 0})
         });
         vm.prank(owner);
         TokenPool(localPool).applyChainUpdates(chainUpdates);
-
     }
 }
