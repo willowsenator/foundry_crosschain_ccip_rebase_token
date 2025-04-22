@@ -27,8 +27,7 @@ contract CrossChainTest is Test {
     RebaseToken sepoliaToken;
     RebaseToken arbSepoliaToken;
 
-    Vault sepoliaVault;
-    Vault arbSepoliaVault;
+    Vault vault;
 
     RebaseTokenPool sepoliaTokenPool;
     RebaseTokenPool arbSepoliaTokenPool;
@@ -38,6 +37,7 @@ contract CrossChainTest is Test {
 
     address owner = makeAddr("Owner");
     address user = makeAddr("User");
+    uint256 constant SEND_VALUE = 1e5;
 
     function setUp() public {
         sepoliaForkId = vm.createSelectFork("sepolia");
@@ -50,7 +50,7 @@ contract CrossChainTest is Test {
         sepoliaNetworkDetails = ccipLocalSimulatorFork.getNetworkDetails(block.chainid);
         vm.startPrank(owner);
         sepoliaToken = new RebaseToken();
-        sepoliaVault = new Vault(IRebaseToken(address(sepoliaToken)));
+        vault = new Vault(IRebaseToken(address(sepoliaToken)));
         sepoliaTokenPool = new RebaseTokenPool(
             IERC20(address(sepoliaToken)),
             new address[](0),
@@ -58,7 +58,7 @@ contract CrossChainTest is Test {
             sepoliaNetworkDetails.routerAddress
         );
 
-        sepoliaToken.grantMintAndBurnRole(address(sepoliaVault));
+        sepoliaToken.grantMintAndBurnRole(address(vault));
         sepoliaToken.grantMintAndBurnRole(address(sepoliaTokenPool));
 
         RegistryModuleOwnerCustom(sepoliaNetworkDetails.registryModuleOwnerCustomAddress).registerAdminViaOwner(
@@ -85,9 +85,6 @@ contract CrossChainTest is Test {
             arbSepoliaNetworkDetails.routerAddress
         );
 
-        arbSepoliaVault = new Vault(IRebaseToken(address(arbSepoliaToken)));
-
-        arbSepoliaToken.grantMintAndBurnRole(address(arbSepoliaVault));
         arbSepoliaToken.grantMintAndBurnRole(address(arbSepoliaTokenPool));
 
         RegistryModuleOwnerCustom(arbSepoliaNetworkDetails.registryModuleOwnerCustomAddress).registerAdminViaOwner(
@@ -99,6 +96,7 @@ contract CrossChainTest is Test {
         TokenAdminRegistry(arbSepoliaNetworkDetails.tokenAdminRegistryAddress).setPool(
             address(arbSepoliaToken), address(arbSepoliaTokenPool)
         );
+        vm.stopPrank();
 
         configureTokenPool(
             sepoliaForkId,
@@ -114,7 +112,6 @@ contract CrossChainTest is Test {
             address(sepoliaTokenPool),
             address(sepoliaToken)
         );
-        vm.stopPrank();
     }
 
     function configureTokenPool(
@@ -146,7 +143,7 @@ contract CrossChainTest is Test {
         TokenPool(localPool).applyChainUpdates(chainUpdates);
     }
 
-    function brigdeTokens(
+    function bridgeTokens(
         uint256 amountToBridge,
         uint256 localFork,
         uint256 remoteFork,
@@ -171,7 +168,7 @@ contract CrossChainTest is Test {
             data: "",
             tokenAmounts: tokenAmounts,
             feeToken: localNetworkDetails.linkAddress,
-            extraArgs: Client._argsToBytes(Client.EVMExtraArgsV1({gasLimit: 0}))
+            extraArgs: Client._argsToBytes(Client.EVMExtraArgsV2({gasLimit: 0, allowOutOfOrderExecution: false}))
         });
 
         uint256 fee =
@@ -200,5 +197,30 @@ contract CrossChainTest is Test {
         uint256 remoteUserInterestRate = remoteToken.getUserInterestRate(user);
 
         assertEq(remoteUserInterestRate, localUserInterestRate);
+    }
+
+    function testBridgeAllTokens() public {
+        vm.selectFork(sepoliaForkId);
+        vm.deal(user, SEND_VALUE);
+        vm.prank(user);
+        Vault(payable(address(vault))).deposit{value: SEND_VALUE}();
+        assertEq(sepoliaToken.balanceOf(user), SEND_VALUE);
+
+        bridgeTokens(
+            SEND_VALUE,
+            sepoliaForkId,
+            arbSepoliaForkId,
+            sepoliaNetworkDetails,
+            arbSepoliaNetworkDetails,
+            sepoliaToken,
+            arbSepoliaToken
+        );
+
+        vm.selectFork(arbSepoliaForkId);
+        vm.warp(block.timestamp + 20 minutes);
+
+        bridgeTokens(arbSepoliaToken.balanceOf(user), arbSepoliaForkId, sepoliaForkId,
+            arbSepoliaNetworkDetails, sepoliaNetworkDetails, arbSepoliaToken, sepoliaToken
+        );
     }
 }
