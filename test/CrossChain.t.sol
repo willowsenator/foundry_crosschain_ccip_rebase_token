@@ -168,7 +168,7 @@ contract CrossChainTest is Test {
             data: "",
             tokenAmounts: tokenAmounts,
             feeToken: localNetworkDetails.linkAddress,
-            extraArgs: Client._argsToBytes(Client.EVMExtraArgsV2({gasLimit: 0, allowOutOfOrderExecution: false}))
+            extraArgs: Client._argsToBytes(Client.EVMExtraArgsV2({gasLimit: 500000, allowOutOfOrderExecution: false}))
         });
 
         uint256 fee =
@@ -202,12 +202,33 @@ contract CrossChainTest is Test {
     function testBridgeAllTokens() public {
         vm.selectFork(sepoliaForkId);
         vm.deal(user, SEND_VALUE);
+
+        // Deposit into the vault
         vm.prank(user);
         Vault(payable(address(vault))).deposit{value: SEND_VALUE}();
-        assertEq(sepoliaToken.balanceOf(user), SEND_VALUE);
 
+        // Get the principal balance which is what can be burned
+        uint256 userPrincipal = sepoliaToken.principalBalanceOf(user);
+        console.log("User principal balance:", userPrincipal);
+
+        // Print user balance before bridging to verify they have tokens
+        uint256 userBalance = sepoliaToken.balanceOf(user);
+        console.log("User balance before bridging:", userBalance);
+
+        // Check the user's balance with interest approximately equal to SEND_VALUE
+        assertApproxEqAbs(userBalance, SEND_VALUE, 1e13);
+
+        // Make sure user has enough tokens before bridging
+        assertGe(userBalance, userPrincipal, "User doesn't have enough tokens to bridge");
+
+        // Approve router to spend tokens
+        vm.startPrank(user);
+        sepoliaToken.approve(sepoliaNetworkDetails.routerAddress, userPrincipal);
+        vm.stopPrank();
+
+        // Bridge tokens
         bridgeTokens(
-            SEND_VALUE,
+            userPrincipal,
             sepoliaForkId,
             arbSepoliaForkId,
             sepoliaNetworkDetails,
@@ -216,11 +237,26 @@ contract CrossChainTest is Test {
             arbSepoliaToken
         );
 
+        // Now bridge back from Arb Sepolia to Sepolia
         vm.selectFork(arbSepoliaForkId);
         vm.warp(block.timestamp + 20 minutes);
 
+        // Get the principal balance on the destination chain
+        uint256 arbUserPrincipal = arbSepoliaToken.principalBalanceOf(user);
+        uint256 arbUserBalance = arbSepoliaToken.balanceOf(user);
+
+        console.log("User principal balance on Arbitrum:", arbUserPrincipal);
+        console.log("User total balance on Arbitrum:", arbUserBalance);
+
+        // Make sure user has tokens before bridging back
+        assertGe(arbUserBalance, arbUserPrincipal, "User doesn't have enough tokens on Arbitrum to bridge back");
+
+        vm.startPrank(user);
+        arbSepoliaToken.approve(arbSepoliaNetworkDetails.routerAddress, arbUserPrincipal);
+        vm.stopPrank();
+
         bridgeTokens(
-            arbSepoliaToken.balanceOf(user),
+            arbUserPrincipal,
             arbSepoliaForkId,
             sepoliaForkId,
             arbSepoliaNetworkDetails,

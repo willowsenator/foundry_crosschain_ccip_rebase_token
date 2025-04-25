@@ -34,6 +34,7 @@ contract RebaseToken is ERC20, AccessControl {
     event TransferFromStateUpdated(address indexed from, address indexed to, uint256 amount);
     event MintAndBurnRoleGranted(address indexed account);
     event AdminRoleGrantFailed(address indexed account);
+    event PrincipalTransferred(address indexed from, address indexed to, uint256 amount);
 
     constructor() ERC20("Rebase Token", "RBT") {
         bool sucess = _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -67,7 +68,7 @@ contract RebaseToken is ERC20, AccessControl {
      */
     function setInterestRate(uint256 _newInterestRate) external onlyRole(DEFAULT_ADMIN_ROLE) {
         // Set the interest rate for the user
-        if (_newInterestRate >= s_interestRate) {
+        if (_newInterestRate > s_interestRate) {
             revert RebaseToken__InterestRateCanOnlyDecrease(s_interestRate, _newInterestRate);
         }
         s_interestRate = _newInterestRate;
@@ -109,6 +110,7 @@ contract RebaseToken is ERC20, AccessControl {
         if (_amount == type(uint256).max) {
             _amount = balanceOf(_from);
         }
+
         _mintAccuredInterest(_from);
         require(s_principalBalance[_from] >= _amount, "RebaseToken: Insufficient principal balance");
         _burn(_from, _amount);
@@ -187,7 +189,6 @@ contract RebaseToken is ERC20, AccessControl {
     function _calculateAccumulateUserInterest(address _user) internal view returns (uint256 linearInterest) {
         uint256 timeElapsed = block.timestamp - s_userLastUpdatedTimestamp[_user];
         linearInterest = PRECISION_FACTOR + (s_userInterestRate[_user] * timeElapsed);
-
         require(linearInterest >= PRECISION_FACTOR, "RebaseToken: Overflow in interest calculation");
     }
 
@@ -196,11 +197,28 @@ contract RebaseToken is ERC20, AccessControl {
      * @param _user The user address
      */
     function _mintAccuredInterest(address _user) internal {
-        s_userLastUpdatedTimestamp[_user] = block.timestamp;
+        // Store the current timestamp and last updated timestamp
+        uint256 currentTimestamp = block.timestamp;
+        uint256 lastUpdatedTimestamp = s_userLastUpdatedTimestamp[_user];
+
+        // Skip if this is the first interaction or no time has passed
+        if (lastUpdatedTimestamp == 0 || currentTimestamp <= lastUpdatedTimestamp) {
+            return;
+        }
+
+        // Calculate the linear interest based on the time elapsed without using balnceOf
+        uint256 timeElapsed = currentTimestamp - lastUpdatedTimestamp;
+        uint256 linearInterest = PRECISION_FACTOR + (s_userInterestRate[_user] * timeElapsed);
+
         uint256 previousPrincipalBalance = super.balanceOf(_user);
-        uint256 currentBalance = balanceOf(_user);
+        uint256 currentBalance = (previousPrincipalBalance * linearInterest) / PRECISION_FACTOR;
         uint256 balanceIncrease = currentBalance - previousPrincipalBalance;
+
+        // Mint the calculated interest to the user
         _mint(_user, balanceIncrease);
+
+        // Update the timestamp AFTER calculating interest
+        s_userLastUpdatedTimestamp[_user] = block.timestamp;
     }
 
     /**
