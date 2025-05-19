@@ -18,7 +18,6 @@ contract RebaseTokenPool is TokenPool {
         returns (Pool.LockOrBurnOutV1 memory lockOrBurnOut)
     {
         _validateLockOrBurn(lockOrBurnIn);
-
         uint256 userInterestRate = IRebaseToken(address(i_token)).getUserInterestRate(lockOrBurnIn.originalSender);
 
         // Burn the tokens
