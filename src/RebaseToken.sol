@@ -24,7 +24,7 @@ contract RebaseToken is ERC20, AccessControl {
 
     mapping(address => uint256) private s_userInterestRate;
     mapping(address => uint256) private s_userLastUpdatedTimestamp;
-    mapping(address => uint256) private s_principalBalance;
+
 
     // Events
     event InterestRateSet(uint256 newInterestRate);
@@ -76,12 +76,12 @@ contract RebaseToken is ERC20, AccessControl {
     }
 
     /**
-     * @notice Get the principal balance of the user not including the interest
-     * @param _user The user address
-     * @return The principal balance of the user
+     * @notice Get the principal balance of the from not including the interest
+     * @param _from The from address
+     * @return The principal balance of the from
      */
-    function principalBalanceOf(address _user) external view returns (uint256) {
-        return s_principalBalance[_user];
+    function principalBalanceOf(address _from) external view returns (uint256) {
+        return super.balanceOf(_from);
     }
 
     /**
@@ -96,7 +96,7 @@ contract RebaseToken is ERC20, AccessControl {
         _mintAccuredInterest(_to);
         s_userInterestRate[_to] = _userInterestRate;
         _mint(_to, _amount);
-        s_principalBalance[_to] += _amount;
+    
         emit Mint(_to, _amount);
     }
 
@@ -112,9 +112,8 @@ contract RebaseToken is ERC20, AccessControl {
         }
 
         _mintAccuredInterest(_from);
-        require(s_principalBalance[_from] >= _amount, "RebaseToken: Insufficient principal balance");
         _burn(_from, _amount);
-        s_principalBalance[_from] -= _amount;
+        
         emit Burn(_from, _amount);
         s_userLastUpdatedTimestamp[_from] = block.timestamp;
     }
