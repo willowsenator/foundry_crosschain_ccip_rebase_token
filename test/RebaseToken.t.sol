@@ -107,7 +107,6 @@ contract RebaseTokenTest is Test {
             vm.stopPrank();
         }
 
-        console.log("Vault Balance", address(vault).balance);
         userBalanceWithInterest = rebaseToken.balanceOf(user);
         console.log("User Balance with Interest after adding rewards", userBalanceWithInterest);
 
@@ -116,14 +115,8 @@ contract RebaseTokenTest is Test {
         vault.redeem(userBalanceWithInterest);
         vm.stopPrank();
 
-        // Check the user's Ether balance after redemption
-        uint256 userEthBalanceAfter = address(user).balance;
-        userBalanceWithInterest = rebaseToken.balanceOf(user);
-
         // Assertions
-        console.log("Rebase Token Balance after redemption", rebaseToken.balanceOf(user));
-        assertEq(rebaseToken.balanceOf(user), 0); // User's token balance should be 0 after redemption
-        assertGe(userEthBalanceAfter, userBalanceWithInterest); // User's Ether balance should match their token balance*/
+        assertGe(userBalanceWithInterest, user.balance);
     }
 
     function testTransfer(uint256 amount, uint256 amountToSend) public {

@@ -54,6 +54,7 @@ contract RebaseTokenPool is TokenPool {
         _validateReleaseOrMint(releaseOrMintIn);
 
         uint256 userInterestRate = abi.decode(releaseOrMintIn.sourcePoolData, (uint256));
+        console.log("User interest rate:", userInterestRate);
 
         // Mint the tokens
         IRebaseToken(address(i_token)).mint(releaseOrMintIn.receiver, releaseOrMintIn.amount, userInterestRate);

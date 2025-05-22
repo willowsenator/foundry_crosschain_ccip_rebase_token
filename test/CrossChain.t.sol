@@ -193,13 +193,13 @@ contract CrossChainTest is Test {
         console.log("Local balance after bridging:", localBalanceAfter);
         console.log("Amount to bridge:", amountToBridge);
 
-        assertEq(0, localBalanceAfter);
+        assertEq(localBalanceAfter, localBalanceBefore - amountToBridge);
         uint256 localUserInterestRate = localToken.getUserInterestRate(user);
 
         vm.selectFork(remoteFork);
         vm.warp(block.timestamp + 20 minutes);
         uint256 remoteBalanceBefore = remoteToken.balanceOf(user);
-        /*ccipLocalSimulatorFork.switchChainAndRouteMessage(remoteFork);
+        ccipLocalSimulatorFork.switchChainAndRouteMessage(remoteFork);
         uint256 remoteBalanceAfter = remoteToken.balanceOf(user);
 
         console.log("Remote balance before bridging:", remoteBalanceBefore);
@@ -209,7 +209,7 @@ contract CrossChainTest is Test {
         assertEq(remoteBalanceAfter, remoteBalanceBefore + amountToBridge);
         uint256 remoteUserInterestRate = remoteToken.getUserInterestRate(user);
 
-        assertEq(remoteUserInterestRate, localUserInterestRate);*/
+        assertEq(remoteUserInterestRate, localUserInterestRate);
     }
 
     function testBridgeAllTokens() public {
@@ -250,7 +250,7 @@ contract CrossChainTest is Test {
             arbSepoliaToken
         );
 
-        /*// Now bridge back from Arb Sepolia to Sepolia
+        // Now bridge back from Arb Sepolia to Sepolia
         vm.selectFork(arbSepoliaForkId);
         vm.warp(block.timestamp + 20 minutes);
 
@@ -276,6 +276,6 @@ contract CrossChainTest is Test {
             sepoliaNetworkDetails,
             arbSepoliaToken,
             sepoliaToken
-        );*/
+        );
     }
 }

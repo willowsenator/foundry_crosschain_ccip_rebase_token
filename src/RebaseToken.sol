@@ -25,7 +25,6 @@ contract RebaseToken is ERC20, AccessControl {
     mapping(address => uint256) private s_userInterestRate;
     mapping(address => uint256) private s_userLastUpdatedTimestamp;
 
-
     // Events
     event InterestRateSet(uint256 newInterestRate);
     event Mint(address indexed to, uint256 amount);
@@ -96,7 +95,7 @@ contract RebaseToken is ERC20, AccessControl {
         _mintAccuredInterest(_to);
         s_userInterestRate[_to] = _userInterestRate;
         _mint(_to, _amount);
-    
+
         emit Mint(_to, _amount);
     }
 
@@ -113,7 +112,7 @@ contract RebaseToken is ERC20, AccessControl {
 
         _mintAccuredInterest(_from);
         _burn(_from, _amount);
-        
+
         emit Burn(_from, _amount);
         s_userLastUpdatedTimestamp[_from] = block.timestamp;
     }
@@ -202,6 +201,7 @@ contract RebaseToken is ERC20, AccessControl {
 
         // Skip if this is the first interaction or no time has passed
         if (lastUpdatedTimestamp == 0 || currentTimestamp <= lastUpdatedTimestamp) {
+            s_userLastUpdatedTimestamp[_user] = currentTimestamp;
             return;
         }
 

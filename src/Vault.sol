@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import {IRebaseToken} from "./interfaces/IRebaseToken.sol";
+import {console} from "forge-std/console.sol";
 
 contract Vault {
     IRebaseToken private immutable i_rebaseToken;
@@ -38,6 +39,9 @@ contract Vault {
         uint256 vaultBalance = address(this).balance;
         uint256 principal = i_rebaseToken.principalBalanceOf(msg.sender);
 
+        console.log("Vault balance:", vaultBalance);
+        console.log("User principal balance:", principal);
+
         // Scale the redemption amount if the vault does not have enough balance
         uint256 redeemableAmount = _amount > vaultBalance ? vaultBalance : principal;
         require(msg.sender != address(0), "Vault: Invalid sender address");
@@ -47,6 +51,7 @@ contract Vault {
             revert Vault__RedeemFailed();
         }
 
+        console.log("Redeeming amount:", redeemableAmount);
         i_rebaseToken.burn(msg.sender, redeemableAmount);
 
         emit Redeem(msg.sender, redeemableAmount);
