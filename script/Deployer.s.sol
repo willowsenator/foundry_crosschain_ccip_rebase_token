@@ -29,7 +29,6 @@ contract TokenAndPoolDeployer is Script {
         RegistryModuleOwnerCustom(networkDetails.registryModuleOwnerCustomAddress).registerAdminViaOwner(address(token));
         TokenAdminRegistry(networkDetails.tokenAdminRegistryAddress).acceptAdminRole(address(token));
         TokenAdminRegistry(networkDetails.tokenAdminRegistryAddress).setPool(address(token), address(pool));
-
         vm.stopBroadcast();
         console.log("RebaseToken deployed at:", address(token));
         console.log("RebaseTokenPool deployed at:", address(pool));
