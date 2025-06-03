@@ -92,7 +92,7 @@ contract RebaseToken is ERC20, AccessControl {
      */
     function mint(address _to, uint256 _amount, uint256 _userInterestRate) external onlyRole(MINT_AND_BURN_ROLE) {
         console.log("Mint called by:", msg.sender);
-        _mintAccuredInterest(_to);
+        _mintAccruedInterest(_to);
         s_userInterestRate[_to] = _userInterestRate;
         _mint(_to, _amount);
 
@@ -110,7 +110,7 @@ contract RebaseToken is ERC20, AccessControl {
             _amount = balanceOf(_from);
         }
 
-        _mintAccuredInterest(_from);
+        _mintAccruedInterest(_from);
         _burn(_from, _amount);
 
         emit Burn(_from, _amount);
@@ -132,8 +132,8 @@ contract RebaseToken is ERC20, AccessControl {
      * @param _amount The amount of tokens to transfer
      */
     function transfer(address _recipient, uint256 _amount) public override returns (bool) {
-        _mintAccuredInterest(msg.sender);
-        _mintAccuredInterest(_recipient);
+        _mintAccruedInterest(msg.sender);
+        _mintAccruedInterest(_recipient);
         uint256 senderBalance = balanceOf(msg.sender);
         if (_amount == type(uint256).max) {
             _amount = senderBalance;
@@ -157,8 +157,8 @@ contract RebaseToken is ERC20, AccessControl {
      * @param _amount The amount of tokens to transfer
      */
     function transferFrom(address _sender, address _recipient, uint256 _amount) public override returns (bool) {
-        _mintAccuredInterest(_sender);
-        _mintAccuredInterest(_recipient);
+        _mintAccruedInterest(_sender);
+        _mintAccruedInterest(_recipient);
         if (_amount == type(uint256).max) {
             _amount = balanceOf(_sender);
         }
@@ -194,7 +194,7 @@ contract RebaseToken is ERC20, AccessControl {
      * @notice Mint the accured interest for the user
      * @param _user The user address
      */
-    function _mintAccuredInterest(address _user) internal {
+    function _mintAccruedInterest(address _user) internal {
         // Store the current timestamp and last updated timestamp
         uint256 currentTimestamp = block.timestamp;
         uint256 lastUpdatedTimestamp = s_userLastUpdatedTimestamp[_user];
