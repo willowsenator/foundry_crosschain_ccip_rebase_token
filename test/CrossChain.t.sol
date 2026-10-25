@@ -10,7 +10,9 @@ import {CCIPLocalSimulatorFork, Register} from "@chainlink/local/src/ccip/CCIPLo
 import {RebaseTokenPool} from "../src/RebaseTokenPool.sol";
 import {IERC20} from "@ccip/contracts/src/v0.8/vendor/openzeppelin-solidity/v4.8.3/contracts/token/ERC20/IERC20.sol";
 
-import {RegistryModuleOwnerCustom} from "@ccip/contracts/src/v0.8/ccip/tokenAdminRegistry/RegistryModuleOwnerCustom.sol";
+import {
+    RegistryModuleOwnerCustom
+} from "@ccip/contracts/src/v0.8/ccip/tokenAdminRegistry/RegistryModuleOwnerCustom.sol";
 import {TokenAdminRegistry} from "@ccip/contracts/src/v0.8/ccip/tokenAdminRegistry/TokenAdminRegistry.sol";
 
 import {TokenPool} from "@ccip/contracts/src/v0.8/ccip/pools/TokenPool.sol";
@@ -39,7 +41,13 @@ contract CrossChainTest is Test {
     address user = makeAddr("User");
     uint256 constant SEND_VALUE = 1e5;
 
+    // The forks read SEPOLIA_RPC_URL and ARB_SEPOLIA_RPC_URL (foundry.toml); without both, the tests skip
+    bool forksConfigured;
+
     function setUp() public {
+        forksConfigured = bytes(vm.envOr("SEPOLIA_RPC_URL", string(""))).length > 0
+            && bytes(vm.envOr("ARB_SEPOLIA_RPC_URL", string(""))).length > 0;
+        if (!forksConfigured) return;
         sepoliaForkId = vm.createSelectFork("sepolia");
         arbSepoliaForkId = vm.createFork("arb-sepolia");
 
@@ -61,15 +69,13 @@ contract CrossChainTest is Test {
         sepoliaToken.grantMintAndBurnRole(address(vault));
         sepoliaToken.grantMintAndBurnRole(address(sepoliaTokenPool));
 
-        RegistryModuleOwnerCustom(sepoliaNetworkDetails.registryModuleOwnerCustomAddress).registerAdminViaOwner(
-            address(sepoliaToken)
-        );
+        RegistryModuleOwnerCustom(sepoliaNetworkDetails.registryModuleOwnerCustomAddress)
+            .registerAdminViaOwner(address(sepoliaToken));
 
         TokenAdminRegistry(sepoliaNetworkDetails.tokenAdminRegistryAddress).acceptAdminRole(address(sepoliaToken));
 
-        TokenAdminRegistry(sepoliaNetworkDetails.tokenAdminRegistryAddress).setPool(
-            address(sepoliaToken), address(sepoliaTokenPool)
-        );
+        TokenAdminRegistry(sepoliaNetworkDetails.tokenAdminRegistryAddress)
+            .setPool(address(sepoliaToken), address(sepoliaTokenPool));
 
         vm.stopPrank();
 
@@ -87,15 +93,13 @@ contract CrossChainTest is Test {
 
         arbSepoliaToken.grantMintAndBurnRole(address(arbSepoliaTokenPool));
 
-        RegistryModuleOwnerCustom(arbSepoliaNetworkDetails.registryModuleOwnerCustomAddress).registerAdminViaOwner(
-            address(arbSepoliaToken)
-        );
+        RegistryModuleOwnerCustom(arbSepoliaNetworkDetails.registryModuleOwnerCustomAddress)
+            .registerAdminViaOwner(address(arbSepoliaToken));
 
         TokenAdminRegistry(arbSepoliaNetworkDetails.tokenAdminRegistryAddress).acceptAdminRole(address(arbSepoliaToken));
 
-        TokenAdminRegistry(arbSepoliaNetworkDetails.tokenAdminRegistryAddress).setPool(
-            address(arbSepoliaToken), address(arbSepoliaTokenPool)
-        );
+        TokenAdminRegistry(arbSepoliaNetworkDetails.tokenAdminRegistryAddress)
+            .setPool(address(arbSepoliaToken), address(arbSepoliaTokenPool));
         vm.stopPrank();
 
         configureTokenPool(
@@ -124,13 +128,13 @@ contract CrossChainTest is Test {
     ) public {
         vm.selectFork(forkId);
         /*struct ChainUpdate {
-    uint64 remoteChainSelector; // ──╮ Remote chain selector
-    bool allowed; // ────────────────╯ Whether the chain should be enabled
-    bytes remotePoolAddress; //        Address of the remote pool, ABI encoded in the case of a remote EVM chain.
-    bytes remoteTokenAddress; //       Address of the remote token, ABI encoded in the case of a remote EVM chain.
-    RateLimiter.Config outboundRateLimiterConfig; // Outbound rate limited config, meaning the rate limits for all of the onRamps for the given chain
-    RateLimiter.Config inboundRateLimiterConfig; // Inbound rate limited config, meaning the rate limits for all of the offRamps for the given chain
-    }*/
+        uint64 remoteChainSelector; // ──╮ Remote chain selector
+        bool allowed; // ────────────────╯ Whether the chain should be enabled
+        bytes remotePoolAddress; //        Address of the remote pool, ABI encoded in the case of a remote EVM chain.
+        bytes remoteTokenAddress; //       Address of the remote token, ABI encoded in the case of a remote EVM chain.
+        RateLimiter.Config outboundRateLimiterConfig; // Outbound rate limited config, meaning the rate limits for all of the onRamps for the given chain
+        RateLimiter.Config inboundRateLimiterConfig; // Inbound rate limited config, meaning the rate limits for all of the offRamps for the given chain
+        }*/
         TokenPool.ChainUpdate[] memory chainUpdates = new TokenPool.ChainUpdate[](1);
         chainUpdates[0] = TokenPool.ChainUpdate({
             remoteChainSelector: remoteChainSelector,
@@ -213,6 +217,7 @@ contract CrossChainTest is Test {
     }
 
     function testBridgeAllTokens() public {
+        vm.skip(!forksConfigured);
         vm.selectFork(sepoliaForkId);
         vm.deal(user, SEND_VALUE);
 
